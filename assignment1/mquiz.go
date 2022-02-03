@@ -47,7 +47,6 @@ func get_random_rows(count *int, lines [][]string) []int {
 			rand_array = rand.Perm(length)[:length]
 			items = append(items, rand_array...)
 			running_count = running_count - length
-			fmt.Println(running_count, length)
 		}
 	} else if *count <= 0 {
 		log.Fatalf("choose 'n' greater than 0")
