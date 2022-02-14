@@ -1,7 +1,13 @@
 {
-    "users": [],
+    "users": [
+        {
+            "username": "admin",
+            "password": "password1",
+            "userid": 1
+        }
+    ],
     "sessions": [],
-    "nextUserID": 0,
+    "nextUserID": 1,
     "nextBookID": 0,
     "Mu": {}
 }

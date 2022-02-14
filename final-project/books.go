@@ -17,6 +17,7 @@ func main() {
 
 func getDatabase(filename string) *mydb.Database {
 	// Open json file
+	log.Print("Opening JSON file")
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatalf("unable to open the json file: %s", err.Error())
@@ -24,16 +25,20 @@ func getDatabase(filename string) *mydb.Database {
 	defer file.Close()
 
 	// Read json file
+	log.Print("Reading JSON file")
 	byteData, err := ioutil.ReadAll(file)
 	if err != nil {
 		log.Fatalf("unable to read json file: %s", err.Error())
 	}
 
 	// Parse json file
+	log.Print("Parsing JSON file")
 	var database *mydb.Database
 	if err := json.Unmarshal([]byte(byteData), &database); err != nil {
 		log.Fatalf("unable to unmarshal json file: %s", err.Error())
 	}
 	database.Mu = sync.Mutex{}
+
+	log.Print("Database successfully started!")
 	return database
 }
