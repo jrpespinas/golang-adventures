@@ -1,18 +1,7 @@
 {
-	"users": [
-		{
-			"username": "admin",
-			"password": "password1",
-			"userid": 1
-		},
-		{
-			"username": "user1",
-			"password": "password1",
-			"userid": 2
-		}
-	],
-	"books": null,
-	"nextUserID": 2,
+	"users": [],
+	"books": [],
+	"nextUserID": 0,
 	"nextBookID": 0,
 	"Mu": {}
 }

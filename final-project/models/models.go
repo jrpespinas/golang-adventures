@@ -17,8 +17,12 @@ type Book struct {
 	BookID int    `json:"bookid"`
 	Title  string `json:"title"`
 	Author string `json:"author"`
-	Isbn   string `json:"isbn"`
 	Status string `json:"status"`
+}
+
+type Session struct {
+	Token  string `json:"token"`
+	UserID string `json:"userID"`
 }
 
 type Database struct {

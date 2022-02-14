@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -15,7 +16,7 @@ var jwtKey = []byte("secret_key")
 
 func (db *Database) Handler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// var bookID int
+		var bookID int
 		if r.URL.Path == "/login" {
 			db.Login(w, r)
 		} else if r.URL.Path == "/signup" {
@@ -23,6 +24,12 @@ func (db *Database) Handler() http.HandlerFunc {
 			db.Update(w, r)
 		} else if r.URL.Path == "/logout" {
 			db.LogOut(w, r)
+		} else if r.URL.Path == "/books" {
+			db.ProcessBooks(w, r)
+			db.Update(w, r)
+		} else if n, _ := fmt.Sscanf(r.URL.Path, "/books/%d", &bookID); n == 1 {
+			db.ProcessBooksID(bookID, w, r)
+			db.Update(w, r)
 		} else {
 			http.Error(w, "url does not exist", http.StatusNotImplemented)
 		}
@@ -34,9 +41,8 @@ func (db *Database) Handler() http.HandlerFunc {
 ///////////////////////////////////////////////////////////////
 
 func (db *Database) Login(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "POST":
-		log.Print("Creating variables")
+	if r.Method == "POST" {
+		log.Printf("%v Creating variables", r.Method)
 		var user User
 
 		// Get json body from the request
@@ -87,14 +93,13 @@ func (db *Database) Login(w http.ResponseWriter, r *http.Request) {
 				Expires: expirationTime,
 			})
 		log.Print("Successfully created cookie")
-	default:
+	} else {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
 func (db *Database) SignUp(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "POST":
+	if r.Method == "POST" {
 		log.Print("Creating variables")
 		var user User
 		var creds map[string]string
@@ -136,22 +141,25 @@ func (db *Database) SignUp(w http.ResponseWriter, r *http.Request) {
 		log.Print("Successfully added credentials")
 
 		w.Write([]byte("User created!"))
-	default:
+	} else {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
 func (db *Database) LogOut(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		// Destroy cookie
+		log.Print("Destroying cookie")
+		c := http.Cookie{
+			Name:   "token",
+			MaxAge: -1}
+		http.SetCookie(w, &c)
 
-	// Destroy cookie
-	log.Print("Destroying cookie")
-	c := http.Cookie{
-		Name:   "token",
-		MaxAge: -1}
-	http.SetCookie(w, &c)
-
-	log.Print("Log out successful")
-	w.Write([]byte("Logged out!\n"))
+		log.Print("Log out successful")
+		w.Write([]byte("Logged out!\n"))
+	} else {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 ///////////////////////////////////////////////////////////////
@@ -171,20 +179,20 @@ func (db *Database) AuthenticateCredentials(user User) (int, error) {
 		}
 	}
 	log.Print("Credentials do not exist")
-	return 0, errors.New("invalid username or password")
+	return 0, errors.New("user does not exist")
 }
 
-func (db *Database) AuthenticateRequest(w http.ResponseWriter, r *http.Request) error {
+func (db *Database) AuthenticateRequest(w http.ResponseWriter, r *http.Request) (int, error) {
 	// Get cookie from the request
 	log.Print("Getting cookie from headers")
 	cookie, err := r.Cookie("token")
 	if err != nil {
 		if err != http.ErrNoCookie {
-			http.Error(w, "no cookie found", http.StatusUnauthorized)
-			return err
+			log.Print(err.Error())
+			return http.StatusUnauthorized, err
 		}
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return err
+		log.Print(err.Error())
+		return http.StatusBadRequest, err
 	}
 
 	tokenStr := cookie.Value
@@ -200,23 +208,21 @@ func (db *Database) AuthenticateRequest(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		if err == jwt.ErrSignatureInvalid {
 			log.Print(err.Error())
-			http.Error(w, err.Error(), http.StatusUnauthorized)
-			return err
+			return http.StatusUnauthorized, err
 		}
 		log.Print(err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return err
+		return http.StatusBadRequest, err
 	}
 
 	// Check if token is valid
 	log.Print("Validating token")
 	if !tkn.Valid {
-		http.Error(w, "invalid token", http.StatusUnauthorized)
-		return errors.New("invalid token")
+		log.Print(err.Error())
+		return http.StatusUnauthorized, errors.New("invalid token")
 	}
 
 	log.Print("Request authenticated")
-	return nil
+	return http.StatusOK, nil
 }
 
 ///////////////////////////////////////////////////////////////
@@ -238,4 +244,45 @@ func (db *Database) Update(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("Failed to update database: %s\n", err.Error())
 	}
 	db.Mu.Unlock()
+}
+
+///////////////////////////////////////////////////////////////
+// BOOK OPERATIONS
+///////////////////////////////////////////////////////////////
+
+func (db *Database) ProcessBooksID(bookID int, w http.ResponseWriter, r *http.Request) {
+	panic("Not implemented")
+}
+
+func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		log.Print("Authenticating request")
+
+		// Authenticate Request
+		status, err := db.AuthenticateRequest(w, r)
+		if err != nil {
+			http.Error(w, err.Error(), status)
+			return
+		}
+
+		log.Print("Creating variables")
+		var book map[string]string
+
+		log.Print("Decoding JSON body")
+		// Decode json body
+		if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
+			log.Fatalf("Decoding JSON body failed")
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Check for missing fields
+		log.Print("Check fields")
+		if book["title"] == "" || book["author"] == "" || book["status"] == "" {
+			http.Error(w, "missing fields", http.StatusBadRequest)
+			return
+		}
+
+	}
 }
