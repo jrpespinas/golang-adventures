@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -19,12 +20,12 @@ func (db *Database) Handler() http.HandlerFunc {
 			db.Login(w, r)
 		} else if r.URL.Path == "/signup" {
 			db.SignUp(w, r)
+			db.Update(w, r)
 		} else if r.URL.Path == "/logout" {
 			db.LogOut(w, r)
 		} else {
 			http.Error(w, "url does not exist", http.StatusNotImplemented)
 		}
-
 	}
 }
 
@@ -143,11 +144,13 @@ func (db *Database) SignUp(w http.ResponseWriter, r *http.Request) {
 func (db *Database) LogOut(w http.ResponseWriter, r *http.Request) {
 
 	// Destroy cookie
+	log.Print("Destroying cookie")
 	c := http.Cookie{
 		Name:   "token",
 		MaxAge: -1}
 	http.SetCookie(w, &c)
 
+	log.Print("Log out successful")
 	w.Write([]byte("Logged out!\n"))
 }
 
@@ -173,6 +176,7 @@ func (db *Database) AuthenticateCredentials(user User) (int, error) {
 
 func (db *Database) AuthenticateRequest(w http.ResponseWriter, r *http.Request) error {
 	// Get cookie from the request
+	log.Print("Getting cookie from headers")
 	cookie, err := r.Cookie("token")
 	if err != nil {
 		if err != http.ErrNoCookie {
@@ -187,6 +191,7 @@ func (db *Database) AuthenticateRequest(w http.ResponseWriter, r *http.Request) 
 	claims := &Claims{}
 
 	// Get token
+	log.Print("Parsing claims")
 	tkn, err := jwt.ParseWithClaims(tokenStr, claims,
 		func(t *jwt.Token) (interface{}, error) {
 			return jwtKey, nil
@@ -194,22 +199,43 @@ func (db *Database) AuthenticateRequest(w http.ResponseWriter, r *http.Request) 
 
 	if err != nil {
 		if err == jwt.ErrSignatureInvalid {
+			log.Print(err.Error())
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return err
 		}
+		log.Print(err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 
 	// Check if token is valid
+	log.Print("Validating token")
 	if !tkn.Valid {
 		http.Error(w, "invalid token", http.StatusUnauthorized)
 		return errors.New("invalid token")
 	}
 
+	log.Print("Request authenticated")
 	return nil
 }
 
 ///////////////////////////////////////////////////////////////
 // DATABASE OPERATIONS
 ///////////////////////////////////////////////////////////////
+
+func (db *Database) Update(w http.ResponseWriter, r *http.Request) {
+	log.Print("Updating database")
+
+	db.Mu.Lock()
+
+	byteData, err := json.MarshalIndent(db, "", "	")
+	if err != nil {
+		log.Fatalf("Marshaling of data failed: %s\n", err.Error())
+	}
+
+	log.Print("Writing to JSON body")
+	if err := ioutil.WriteFile("data/data.json", byteData, 0644); err != nil {
+		log.Fatalf("Failed to update database: %s\n", err.Error())
+	}
+	db.Mu.Unlock()
+}
