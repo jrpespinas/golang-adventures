@@ -22,14 +22,15 @@ type Book struct {
 
 type Session struct {
 	Token  string `json:"token"`
-	UserID string `json:"userID"`
+	UserID int    `json:"userID"`
 }
 
 type Database struct {
-	Users      []User `json:"users"`
-	Books      []Book `json:"books"`
-	NextUserID int    `json:"nextUserID"`
-	NextBookID int    `json:"nextBookID"`
+	Users      []User    `json:"users"`
+	Books      []Book    `json:"books"`
+	Sessions   []Session `json:"session"`
+	NextUserID int       `json:"nextUserID"`
+	NextBookID int       `json:"nextBookID"`
 	Mu         sync.Mutex
 }
 

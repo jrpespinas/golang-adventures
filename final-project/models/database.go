@@ -21,18 +21,16 @@ func (db *Database) Handler() http.HandlerFunc {
 			db.Login(w, r)
 		} else if r.URL.Path == "/signup" {
 			db.SignUp(w, r)
-			db.Update(w, r)
 		} else if r.URL.Path == "/logout" {
 			db.LogOut(w, r)
 		} else if r.URL.Path == "/books" {
 			db.ProcessBooks(w, r)
-			db.Update(w, r)
 		} else if n, _ := fmt.Sscanf(r.URL.Path, "/books/%d", &bookID); n == 1 {
 			db.ProcessBooksID(bookID, w, r)
-			db.Update(w, r)
 		} else {
 			http.Error(w, "url does not exist", http.StatusNotImplemented)
 		}
+		db.Update(w, r)
 	}
 }
 
@@ -57,7 +55,7 @@ func (db *Database) Login(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "no username or password provided", http.StatusBadRequest)
 		}
 
-		_, err = db.AuthenticateCredentials(user)
+		userID, err := db.AuthenticateCredentials(user)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
@@ -85,6 +83,7 @@ func (db *Database) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Set cookie
 		log.Print("Setting cookie")
 		http.SetCookie(w,
 			&http.Cookie{
@@ -93,6 +92,15 @@ func (db *Database) Login(w http.ResponseWriter, r *http.Request) {
 				Expires: expirationTime,
 			})
 		log.Print("Successfully created cookie")
+
+		// Track session
+		log.Print("Creating session")
+		var sess Session
+		sess.Token = tokenString
+		sess.UserID = userID
+		db.Sessions = append(db.Sessions, sess)
+		log.Print("Session created")
+
 	} else {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -148,6 +156,33 @@ func (db *Database) SignUp(w http.ResponseWriter, r *http.Request) {
 
 func (db *Database) LogOut(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
+		// Get token
+		log.Print("Getting current session")
+		_, token, err := db.GetSession(w, r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		log.Print("Deleting session")
+		db.Mu.Lock()
+		deleted := false
+		for index, sess := range db.Sessions {
+			if sess.Token == token {
+				db.Sessions = append(db.Sessions[:index], db.Sessions[index+1:]...)
+				log.Print("Successfully delete session")
+				deleted = true
+				break
+			}
+		}
+		db.Mu.Unlock()
+
+		if !deleted {
+			log.Fatal("Session does not exist")
+			http.Error(w, "Session does not exist", http.StatusBadRequest)
+			return
+		}
+
 		// Destroy cookie
 		log.Print("Destroying cookie")
 		c := http.Cookie{
@@ -189,7 +224,7 @@ func (db *Database) AuthenticateRequest(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		if err != http.ErrNoCookie {
 			log.Print(err.Error())
-			return http.StatusUnauthorized, err
+			return http.StatusBadRequest, err
 		}
 		log.Print(err.Error())
 		return http.StatusBadRequest, err
@@ -217,12 +252,37 @@ func (db *Database) AuthenticateRequest(w http.ResponseWriter, r *http.Request) 
 	// Check if token is valid
 	log.Print("Validating token")
 	if !tkn.Valid {
-		log.Print(err.Error())
+		log.Print("Invalid token")
 		return http.StatusUnauthorized, errors.New("invalid token")
 	}
 
 	log.Print("Request authenticated")
 	return http.StatusOK, nil
+}
+
+func (db *Database) GetSession(w http.ResponseWriter, r *http.Request) (int, string, error) {
+	log.Print("Getting session token")
+	cookie, err := r.Cookie("token")
+	if err != nil {
+		if err != http.ErrNoCookie {
+			log.Print(err.Error())
+			return 0, "", err
+		}
+		log.Print(err.Error())
+		return 0, "", err
+	}
+
+	log.Print("Checking database for credentials")
+	// Loop through database to find User
+	for _, creds := range db.Sessions {
+		if creds.Token == cookie.Value {
+			log.Print("Session found")
+			return creds.UserID, cookie.Value, nil
+		}
+	}
+	msg := "session does not exist"
+	log.Print(msg)
+	return 0, "", errors.New(msg)
 }
 
 ///////////////////////////////////////////////////////////////
@@ -239,7 +299,7 @@ func (db *Database) Update(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("Marshaling of data failed: %s\n", err.Error())
 	}
 
-	log.Print("Writing to JSON body")
+	log.Print("Writing to JSON file")
 	if err := ioutil.WriteFile("data/data.json", byteData, 0644); err != nil {
 		log.Fatalf("Failed to update database: %s\n", err.Error())
 	}
@@ -257,16 +317,22 @@ func (db *Database) ProcessBooksID(bookID int, w http.ResponseWriter, r *http.Re
 func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		log.Print("Authenticating request")
-
 		// Authenticate Request
+		log.Print("Authenticating request")
 		status, err := db.AuthenticateRequest(w, r)
 		if err != nil {
 			http.Error(w, err.Error(), status)
 			return
 		}
 
-		log.Print("Creating variables")
+		// Get token and userID
+		log.Print("Get session")
+		userID, token, err := db.GetSession(w, r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		// Create placeholder for book
 		var book map[string]string
 
 		log.Print("Decoding JSON body")
@@ -277,6 +343,9 @@ func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		fmt.Println(userID, token)
+		fmt.Println(book)
+
 		// Check for missing fields
 		log.Print("Check fields")
 		if book["title"] == "" || book["author"] == "" || book["status"] == "" {
@@ -284,5 +353,10 @@ func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Add book to database
+		log.Print("Adding book to database")
+		db.Mu.Lock()
+
+		db.Mu.Unlock()
 	}
 }
