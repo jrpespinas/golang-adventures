@@ -63,7 +63,7 @@ func (db *Database) Login(w http.ResponseWriter, r *http.Request) {
 
 		log.Print("Setting token expiration time")
 		// Add expiration time for the claims
-		expirationTime := time.Now().Add(time.Minute * 5)
+		expirationTime := time.Now().Add(time.Minute * 15)
 
 		log.Print("Creating Claims")
 		claims := &Claims{
@@ -140,12 +140,14 @@ func (db *Database) SignUp(w http.ResponseWriter, r *http.Request) {
 
 		// add new user credentials to the database
 		db.Mu.Lock()
-		defer db.Mu.Unlock()
 
 		log.Print("Adding credentials to database")
 		db.NextUserID++
 		user.UserID = db.NextUserID
 		db.Users = append(db.Users, user)
+
+		db.Mu.Unlock()
+
 		log.Print("Successfully added credentials")
 
 		w.Write([]byte("User created!"))
@@ -165,19 +167,8 @@ func (db *Database) LogOut(w http.ResponseWriter, r *http.Request) {
 		}
 
 		log.Print("Deleting session")
-		db.Mu.Lock()
-		deleted := false
-		for index, sess := range db.Sessions {
-			if sess.Token == token {
-				db.Sessions = append(db.Sessions[:index], db.Sessions[index+1:]...)
-				log.Print("Successfully delete session")
-				deleted = true
-				break
-			}
-		}
-		db.Mu.Unlock()
-
-		if !deleted {
+		err = db.DeleteSession(token, w, r)
+		if err != nil {
 			log.Fatal("Session does not exist")
 			http.Error(w, "Session does not exist", http.StatusBadRequest)
 			return
@@ -315,16 +306,16 @@ func (db *Database) ProcessBooksID(bookID int, w http.ResponseWriter, r *http.Re
 }
 
 func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
+	// Authenticate GET request
+	log.Print("Authenticate request")
+	status, err := db.AuthenticateRequest(w, r)
+	if err != nil {
+		http.Error(w, err.Error(), status)
+		return
+	}
+
 	switch r.Method {
 	case "POST":
-		// Authenticate Request
-		log.Print("Authenticating request")
-		status, err := db.AuthenticateRequest(w, r)
-		if err != nil {
-			http.Error(w, err.Error(), status)
-			return
-		}
-
 		// Get token and userID
 		log.Print("Get session")
 		userID, _, err := db.GetSession(w, r)
@@ -356,6 +347,7 @@ func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
 		newbook.Title = book["title"]
 		newbook.Author = book["author"]
 		newbook.Status = book["status"]
+		newbook.UserID = userID
 
 		err = db.CheckBook(newbook)
 		if err == nil {
@@ -366,15 +358,32 @@ func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
 		// Add book to database
 		log.Print("Adding Book to database")
 		db.Mu.Lock()
-		defer db.Mu.Unlock()
 
 		db.NextBookID++
 		newbook.BookID = db.NextBookID
-		newbook.UserID = userID
 		db.Books = append(db.Books, newbook)
+		db.Mu.Unlock()
 
 		log.Print("Successfully added book to database")
 		w.Write([]byte("Book added"))
+	case "GET":
+		// Get session
+		log.Print("Get Session")
+		userID, _, err := db.GetSession(w, r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		// Get books by userID
+		books := db.GetBookByUser(userID)
+
+		// Return all books
+		log.Print("Encoding entries")
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(books); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
@@ -384,10 +393,39 @@ func (db *Database) CheckBook(book Book) error {
 
 	log.Printf("Checking database for %s by %s", book.Title, book.Author)
 	for _, bookEntry := range db.Books {
-		if bookEntry.Author == book.Author && bookEntry.Title == book.Title && bookEntry.Status == book.Status {
+		if bookEntry.UserID == book.UserID && bookEntry.Author == book.Author && bookEntry.Title == book.Title && bookEntry.Status == book.Status {
 			log.Print("Book found")
 			return nil
 		}
 	}
 	return errors.New("Book already exists")
+}
+
+func (db *Database) GetBookByUser(userID int) []Book {
+	booksByUser := []Book{}
+
+	db.Mu.Lock()
+	defer db.Mu.Unlock()
+
+	log.Print("Getting books by user")
+	for _, book := range db.Books {
+		if book.UserID == userID {
+			booksByUser = append(booksByUser, book)
+		}
+	}
+	return booksByUser
+}
+
+func (db *Database) DeleteSession(token string, w http.ResponseWriter, r *http.Request) error {
+	db.Mu.Lock()
+	defer db.Mu.Unlock()
+	for index, sess := range db.Sessions {
+		if sess.Token == token {
+			db.Sessions = append(db.Sessions[:index], db.Sessions[index+1:]...)
+			log.Print("Successfully delete session")
+			return nil
+		}
+	}
+
+	return errors.New("Session not found")
 }

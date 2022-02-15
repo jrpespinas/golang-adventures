@@ -11,11 +11,11 @@ import (
 )
 
 func main() {
-	db := getDatabase("data/data.json")
+	db := GetDatabase("data/data.json")
 	http.ListenAndServe(":8080", db.Handler())
 }
 
-func getDatabase(filename string) *mydb.Database {
+func GetDatabase(filename string) *mydb.Database {
 	// Open json file
 	log.Print("Opening JSON file")
 	file, err := os.Open(filename)
