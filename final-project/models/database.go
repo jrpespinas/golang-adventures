@@ -326,20 +326,78 @@ func (db *Database) ProcessBooksID(bookID int, w http.ResponseWriter, r *http.Re
 
 	// Get token and userID
 	log.Print("Get session")
-	_, _, err = db.GetSession(w, r)
+	userID, _, err := db.GetSession(w, r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+
+	// return one book
+	book, err := db.GetBookByID(userID, bookID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	log.Printf("Book %d found", book.BookID)
 
 	switch r.Method {
 	case "POST":
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	case "GET":
-		panic("Not implemented")
+		log.Print("Encoding book")
+		w.Header().Set("Content-Type", "application/json")
+		if err = json.NewEncoder(w).Encode(book); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		log.Print("JSON encoded")
 	case "PUT":
-		panic("Not implemented")
+		var bookPlaceholder map[string]string
+		// Decode JSON body
+		log.Print("Decoding JSON body")
+		if err := json.NewDecoder(r.Body).Decode(&bookPlaceholder); err != nil {
+			log.Print("Decoding JSON body failed")
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Check for missing fields
+		log.Print("Check fields")
+		if bookPlaceholder["title"] == "" || bookPlaceholder["author"] == "" || bookPlaceholder["status"] == "" {
+			http.Error(w, "missing fields", http.StatusBadRequest)
+			return
+		}
+
+		// Delete book to be replaced
+		err = db.DeleteBookByID(userID, bookID)
+		db.Update(w, r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		log.Print("Creating book placeholder")
+		var newbook Book
+		newbook.Title = bookPlaceholder["title"]
+		newbook.Author = bookPlaceholder["author"]
+		newbook.Status = bookPlaceholder["status"]
+		newbook.BookID = book.BookID
+		newbook.UserID = book.UserID
+
+		log.Print("Updating book information")
+		db.Mu.Lock()
+		db.Books = append(db.Books, newbook)
+		db.Mu.Unlock()
+
+		log.Print("Successfully updated book information")
+		w.Write([]byte("Book updated"))
 	case "DELETE":
-		panic("Not implemented")
+		// Delete book to be replaced
+		err = db.DeleteBookByID(userID, bookID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.Write([]byte("Book deleted"))
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -366,10 +424,10 @@ func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
 		// Create placeholder for book
 		var book map[string]string
 
-		log.Print("Decoding JSON body")
 		// Decode json body
+		log.Print("Decoding JSON body")
 		if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
-			log.Fatalf("Decoding JSON body failed")
+			log.Print("Decoding JSON body failed")
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -410,13 +468,20 @@ func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
 		// Get books by userID
 		books := db.GetBookByUser(userID)
 
+		if len(books) == 0 {
+			log.Print("No books found")
+			http.Error(w, "No books found", http.StatusNotFound)
+			return
+		}
+
 		// Return all books
-		log.Print("Encoding entries")
+		log.Print("Encoding ")
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(books); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		log.Print("JSON encoded")
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -449,4 +514,32 @@ func (db *Database) GetBookByUser(userID int) []Book {
 		}
 	}
 	return booksByUser
+}
+
+func (db *Database) GetBookByID(userID int, bookID int) (Book, error) {
+	db.Mu.Lock()
+	defer db.Mu.Unlock()
+
+	log.Printf("[GetBookByID] Getting Book ID: %d", bookID)
+	for _, book := range db.Books {
+		if book.UserID == userID && book.BookID == bookID {
+			return book, nil
+		}
+	}
+	return Book{}, errors.New("Book does not exist")
+}
+
+func (db *Database) DeleteBookByID(userID int, bookID int) error {
+	db.Mu.Lock()
+	defer db.Mu.Unlock()
+
+	log.Printf("[DeleteBookByID] Deleting Book ID: %d", bookID)
+	for index, book := range db.Books {
+		if book.UserID == userID && book.BookID == bookID {
+			db.Books = append(db.Books[:index], db.Books[index+1:]...)
+			log.Print("[DeleteBookByID] Successfully deleted book")
+			return nil
+		}
+	}
+	return errors.New("Book not found")
 }
