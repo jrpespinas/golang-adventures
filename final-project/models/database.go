@@ -276,6 +276,20 @@ func (db *Database) GetSession(w http.ResponseWriter, r *http.Request) (int, str
 	return 0, "", errors.New(msg)
 }
 
+func (db *Database) DeleteSession(token string, w http.ResponseWriter, r *http.Request) error {
+	db.Mu.Lock()
+	defer db.Mu.Unlock()
+	for index, sess := range db.Sessions {
+		if sess.Token == token {
+			db.Sessions = append(db.Sessions[:index], db.Sessions[index+1:]...)
+			log.Print("Successfully delete session")
+			return nil
+		}
+	}
+
+	return errors.New("Session not found")
+}
+
 ///////////////////////////////////////////////////////////////
 // DATABASE OPERATIONS
 ///////////////////////////////////////////////////////////////
@@ -302,7 +316,33 @@ func (db *Database) Update(w http.ResponseWriter, r *http.Request) {
 ///////////////////////////////////////////////////////////////
 
 func (db *Database) ProcessBooksID(bookID int, w http.ResponseWriter, r *http.Request) {
-	panic("Not implemented")
+	// Authenticate GET request
+	log.Print("Authenticate request")
+	status, err := db.AuthenticateRequest(w, r)
+	if err != nil {
+		http.Error(w, err.Error(), status)
+		return
+	}
+
+	// Get token and userID
+	log.Print("Get session")
+	_, _, err = db.GetSession(w, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	switch r.Method {
+	case "POST":
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	case "GET":
+		panic("Not implemented")
+	case "PUT":
+		panic("Not implemented")
+	case "DELETE":
+		panic("Not implemented")
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
 }
 
 func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
@@ -314,15 +354,15 @@ func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get token and userID
+	log.Print("Get session")
+	userID, _, err := db.GetSession(w, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
 	switch r.Method {
 	case "POST":
-		// Get token and userID
-		log.Print("Get session")
-		userID, _, err := db.GetSession(w, r)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-
 		// Create placeholder for book
 		var book map[string]string
 
@@ -367,13 +407,6 @@ func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
 		log.Print("Successfully added book to database")
 		w.Write([]byte("Book added"))
 	case "GET":
-		// Get session
-		log.Print("Get Session")
-		userID, _, err := db.GetSession(w, r)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-
 		// Get books by userID
 		books := db.GetBookByUser(userID)
 
@@ -384,6 +417,8 @@ func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
@@ -414,18 +449,4 @@ func (db *Database) GetBookByUser(userID int) []Book {
 		}
 	}
 	return booksByUser
-}
-
-func (db *Database) DeleteSession(token string, w http.ResponseWriter, r *http.Request) error {
-	db.Mu.Lock()
-	defer db.Mu.Unlock()
-	for index, sess := range db.Sessions {
-		if sess.Token == token {
-			db.Sessions = append(db.Sessions[:index], db.Sessions[index+1:]...)
-			log.Print("Successfully delete session")
-			return nil
-		}
-	}
-
-	return errors.New("Session not found")
 }
