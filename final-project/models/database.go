@@ -327,7 +327,7 @@ func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
 
 		// Get token and userID
 		log.Print("Get session")
-		userID, token, err := db.GetSession(w, r)
+		userID, _, err := db.GetSession(w, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -343,9 +343,6 @@ func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Println(userID, token)
-		fmt.Println(book)
-
 		// Check for missing fields
 		log.Print("Check fields")
 		if book["title"] == "" || book["author"] == "" || book["status"] == "" {
@@ -353,10 +350,44 @@ func (db *Database) ProcessBooks(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Add book to database
-		log.Print("Adding book to database")
-		db.Mu.Lock()
+		// Check database for similar entries
+		log.Print("Checking database for similar entry")
+		var newbook Book
+		newbook.Title = book["title"]
+		newbook.Author = book["author"]
+		newbook.Status = book["status"]
 
-		db.Mu.Unlock()
+		err = db.CheckBook(newbook)
+		if err == nil {
+			http.Error(w, "book already exists", http.StatusConflict)
+			return
+		}
+
+		// Add book to database
+		log.Print("Adding Book to database")
+		db.Mu.Lock()
+		defer db.Mu.Unlock()
+
+		db.NextBookID++
+		newbook.BookID = db.NextBookID
+		newbook.UserID = userID
+		db.Books = append(db.Books, newbook)
+
+		log.Print("Successfully added book to database")
+		w.Write([]byte("Book added"))
 	}
+}
+
+func (db *Database) CheckBook(book Book) error {
+	db.Mu.Lock()
+	defer db.Mu.Unlock()
+
+	log.Printf("Checking database for %s by %s", book.Title, book.Author)
+	for _, bookEntry := range db.Books {
+		if bookEntry.Author == book.Author && bookEntry.Title == book.Title && bookEntry.Status == book.Status {
+			log.Print("Book found")
+			return nil
+		}
+	}
+	return errors.New("Book already exists")
 }
