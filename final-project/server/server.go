@@ -1,12 +1,12 @@
 package main
 
 import (
-	mydb "books/models"
 	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	mydb "server/database"
 	"sync"
 )
 

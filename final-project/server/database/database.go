@@ -104,6 +104,8 @@ func (db *Database) Login(w http.ResponseWriter, r *http.Request) {
 		db.Sessions = append(db.Sessions, sess)
 		log.Print("[Login] Session created")
 
+		w.Write([]byte("Login successful"))
+
 	} else {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -203,7 +205,7 @@ func (db *Database) AuthenticateCredentials(user User) (int, error) {
 	// Loop through database to find User
 	for _, creds := range db.Users {
 		if creds.Username == user.Username && creds.Password == user.Password {
-			log.Print("Credentials found")
+			log.Print("[AuthenticateCredentials] Credentials found")
 			return creds.UserID, nil
 		}
 	}
@@ -385,6 +387,7 @@ func (db *Database) GetAllRead(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		books, status, err := db.GetBookByUser(userID, "finished", w, r)
 		if err != nil {
+			w.Write([]byte(err.Error()))
 			http.Error(w, err.Error(), status)
 			return
 		}
@@ -394,6 +397,7 @@ func (db *Database) GetAllRead(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(books); err != nil {
 			log.Printf("[GetAllRead] Error found: %s", err.Error())
+			w.Write([]byte(err.Error()))
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
