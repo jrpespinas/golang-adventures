@@ -13,6 +13,7 @@ import (
 const baseUrl = "http://localhost:8080"
 
 var logo = fmt.Sprintf("\n\nBook list\n=========\n\n")
+var cookie []*http.Cookie
 
 func main() {
 	// initialize client
@@ -64,7 +65,7 @@ secondLoop:
 	for {
 		switch bookOption {
 		case 1:
-			break secondLoop
+			GetAllBooks(c)
 		case 8:
 			Logout(c)
 			break secondLoop
@@ -101,27 +102,8 @@ func SignUp(c http.Client) {
 
 	// Encode json to byte
 	body := fmt.Sprintf("{\"username\":\"%s\", \"password\":\"%s\"}", username, password)
-	jsonBody := bytes.NewBuffer([]byte(body))
-
-	// POST request
-	signupUrl := baseUrl + "/signup"
-	request, err := http.NewRequest("POST", signupUrl, jsonBody)
-	if err != nil {
-		log.Printf("[SignUp] Error found: %s", err.Error())
-		fmt.Printf("Error found: %s", err.Error())
-		return
-	}
-
-	response, err := c.Do(request)
-	if err != nil {
-		fmt.Printf("Error found: %s", err.Error())
-	}
-	defer response.Body.Close()
-
-	responseBody, _ := ioutil.ReadAll(response.Body)
-
-	fmt.Printf("\nStatus: %s", response.Status)
-	fmt.Printf("\nBody: %s", string(responseBody))
+	MakeRequest(c, "POST", "/signup", body, false)
+	return
 }
 
 func Login(c http.Client) int {
@@ -137,15 +119,43 @@ func Login(c http.Client) int {
 
 	// Encode json to byte
 	body := fmt.Sprintf("{\"username\":\"%s\", \"password\":\"%s\"}", username, password)
-	jsonBody := bytes.NewBuffer([]byte(body))
+	status, _ := MakeRequest(c, "POST", "/login", body, false)
+	return status
+}
 
-	// POST request
-	signupUrl := baseUrl + "/login"
-	request, err := http.NewRequest("POST", signupUrl, jsonBody)
-	if err != nil {
-		log.Printf("[SignUp] Error found: %s", err.Error())
-		fmt.Printf("Error found: %s", err.Error())
-		return http.StatusInternalServerError
+func Logout(c http.Client) int {
+	// GET request
+	status, _ := MakeRequest(c, "GET", "/logout", "", true)
+	return status
+}
+
+func GetAllBooks(c http.Client) {
+	panic("Not implemented")
+}
+
+func MakeRequest(c http.Client, method string, endpoint string, body string, needCookie bool) (int, []byte) {
+	// Set URL
+	url := baseUrl + endpoint
+	var request *http.Request
+
+	// Initialize new request
+	if method == "POST" || method == "PUT" {
+		// Get JSON body
+		jsonBody := bytes.NewBuffer([]byte(body))
+
+		request, _ = http.NewRequest(method, url, jsonBody)
+	} else if method == "GET" || method == "DELETE" {
+		request, _ = http.NewRequest(method, url, nil)
+	} else {
+		return http.StatusMethodNotAllowed, []byte("null")
+	}
+
+	// Modify header
+	request.Header.Set("Content-Type", "application/json")
+
+	// Add cookie
+	if needCookie {
+		request.AddCookie(cookie[0])
 	}
 
 	response, err := c.Do(request)
@@ -156,7 +166,6 @@ func Login(c http.Client) int {
 
 	responseBody, _ := ioutil.ReadAll(response.Body)
 
-	fmt.Printf("\nStatus: %s", response.Status)
-	fmt.Printf("\nBody: %s", string(responseBody))
-	return response.StatusCode
+	cookie = response.Cookies()
+	return response.StatusCode, responseBody
 }
