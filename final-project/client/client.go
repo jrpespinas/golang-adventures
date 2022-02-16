@@ -19,6 +19,7 @@ const baseUrl = "http://localhost:8080"
 
 var logo = fmt.Sprintf("\n\nBook list\n=========\n\n")
 var cookie []*http.Cookie
+var state = 1
 
 func main() {
 	// initialize client
@@ -65,9 +66,11 @@ choiceLoop:
 	}
 
 	//////////////////////////////////////////////
-	GetAllBooks(c)
-	fmt.Println("Choose a command:")
-	commands := []string{"View all books", "View finished books", "View unfinished books", "Find book", "Add book", "Edit book", "Delete book", "Logout"}
+	if err := GetAllBooks(c); err != nil {
+		fmt.Println("No books found")
+	}
+	fmt.Println("\nChoose a command:")
+	commands := []string{"View finished books", "View unfinished books", "Find book", "Add book", "Edit book", "Delete book", "Logout"}
 	for index, com := range commands {
 		fmt.Printf("(%v) %v\n", index+1, com)
 	}
@@ -78,22 +81,26 @@ secondLoop:
 	for {
 		switch bookOption {
 		case 1:
-			GetAllBooks(c)
+			state = 2
 		case 2:
-			GetFinishedBooks(c)
+			state = 3
 		case 3:
-			GetUnfinishedBooks(c)
-		case 4:
 			if err := GetOneBook(c); err != nil {
 				fmt.Print("Book not found")
 			}
+		case 4:
+			if err := AddBook(c); err != nil {
+				fmt.Print(err.Error())
+			}
 		case 5:
-			AddBook(c)
+			if err := EditBook(c); err != nil {
+				fmt.Print(err.Error())
+			}
 		case 6:
-			EditBook(c)
+			if err := DeleteBook(c); err != nil {
+				fmt.Print(err.Error())
+			}
 		case 7:
-			DeleteBook(c)
-		case 8:
 			status := Logout(c)
 			if status == 200 {
 				fmt.Printf("%sThank you for using Book list", logo)
@@ -103,9 +110,23 @@ secondLoop:
 			fmt.Printf("\nPlease choose a number.")
 		}
 
+		if state == 1 {
+			if err := GetAllBooks(c); err != nil {
+				fmt.Println("No books found")
+			}
+		} else if state == 2 {
+			if err := GetFinishedBooks(c); err != nil {
+				fmt.Println("No books found")
+			}
+		} else if state == 3 {
+			if err := GetUnfinishedBooks(c); err != nil {
+				fmt.Println("No books found")
+			}
+		}
+
 		// Command prompt
-		fmt.Print(logo)
-		fmt.Println("Choose a command")
+		fmt.Println("\nChoose a command:")
+		commands := []string{"View finished books", "View unfinished books", "Find book", "Add book", "Edit book", "Delete book", "Logout"}
 		for index, com := range commands {
 			fmt.Printf("(%v) %v\n", index+1, com)
 		}
@@ -213,16 +234,103 @@ func Logout(c http.Client) int {
 	return res.StatusCode
 }
 
-func GetAllBooks(c http.Client) {
+func GetAllBooks(c http.Client) error {
 	fmt.Print(logo)
+
+	// Get URL
+	url := baseUrl + "/books"
+
+	// Prepare request
+	req, err := http.NewRequest("GET", url, nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(cookie[0])
+
+	// Make request
+	res, err := c.Do(req)
+	if err != nil {
+		fmt.Printf("Error found: %s", err.Error())
+	}
+	defer res.Body.Close()
+
+	// Decode JSON body
+	var books []models.Book
+	if err := json.NewDecoder(res.Body).Decode(&books); err != nil {
+		return errors.New("No books found")
+	}
+
+	if len(books) != 0 {
+		for index, book := range books {
+			fmt.Printf("%v) Book ID: %v - %v by %v [%v]\n", index+1, book.BookID, book.Title, book.Author, book.Status)
+		}
+		return nil
+	}
+	return nil
 }
 
-func GetFinishedBooks(c http.Client) {
-	panic("Not implemented")
+func GetFinishedBooks(c http.Client) error {
+	fmt.Print(logo)
+
+	// Get URL
+	url := baseUrl + "/books/finished"
+
+	// Prepare request
+	req, err := http.NewRequest("GET", url, nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(cookie[0])
+
+	// Make request
+	res, err := c.Do(req)
+	if err != nil {
+		fmt.Printf("Error found: %s", err.Error())
+	}
+	defer res.Body.Close()
+
+	// Decode JSON body
+	var books []models.Book
+	if err := json.NewDecoder(res.Body).Decode(&books); err != nil {
+		return errors.New("No books found")
+	}
+
+	if len(books) != 0 {
+		for index, book := range books {
+			fmt.Printf("%v) Book ID: %v - %v by %v [%v]\n", index+1, book.BookID, book.Title, book.Author, book.Status)
+		}
+		return nil
+	}
+	return nil
 }
 
-func GetUnfinishedBooks(c http.Client) {
-	panic("not implemented")
+func GetUnfinishedBooks(c http.Client) error {
+	fmt.Print(logo)
+
+	// Get URL
+	url := baseUrl + "/books/unfinished"
+
+	// Prepare request
+	req, err := http.NewRequest("GET", url, nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(cookie[0])
+
+	// Make request
+	res, err := c.Do(req)
+	if err != nil {
+		fmt.Printf("Error found: %s", err.Error())
+	}
+	defer res.Body.Close()
+
+	// Decode JSON body
+	var books []models.Book
+	if err := json.NewDecoder(res.Body).Decode(&books); err != nil {
+		return errors.New("No books found")
+	}
+
+	if len(books) != 0 {
+		for index, book := range books {
+			fmt.Printf("%v) Book ID: %v - %v by %v [%v]\n", index+1, book.BookID, book.Title, book.Author, book.Status)
+		}
+		return nil
+	}
+	return nil
 }
 
 func GetOneBook(c http.Client) error {
@@ -257,7 +365,7 @@ func GetOneBook(c http.Client) error {
 		return err
 	}
 
-	fmt.Printf("\nBook Found!\nBook ID: %s - %s by %s [%s]", strconv.Itoa(book.UserID), book.Title, book.Author, book.Status)
+	fmt.Printf("\nBook Found!\nBook ID: %v- %v by %v [%v]", book.BookID, book.Title, book.Author, book.Status)
 	return nil
 }
 
@@ -294,8 +402,8 @@ func AddBook(c http.Client) error {
 		fmt.Printf("Error found: %s", err.Error())
 	}
 	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		return errors.New(res.Status)
+	if res.StatusCode == 400 {
+		return errors.New("Missing fields")
 	}
 
 	fmt.Printf("\n\nAdded %s to list!\n", title)
@@ -343,15 +451,15 @@ func EditBook(c http.Client) error {
 		fmt.Printf("Error found: %s", err.Error())
 	}
 	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		return errors.New(res.Status)
+	if res.StatusCode == 400 {
+		return errors.New("Missing fields")
 	}
 
 	fmt.Printf("\n\nAdded %s to list!\n", title)
 	return nil
 }
 
-func DeleteBook(c http.Client) {
+func DeleteBook(c http.Client) error {
 	// Print logo
 	fmt.Print(logo)
 	fmt.Println("Delete Book")
@@ -373,9 +481,13 @@ func DeleteBook(c http.Client) {
 	// Make request
 	res, err := c.Do(req)
 	if err != nil {
-		fmt.Printf("Error found: %s", err.Error())
+		return err
+	}
+
+	if res.StatusCode == 404 {
+		return errors.New("Book not found")
 	}
 	defer res.Body.Close()
 	fmt.Printf("\n\nDeleted Book %v\n", bookid)
-	return
+	return nil
 }
