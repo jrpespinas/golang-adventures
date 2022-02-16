@@ -31,8 +31,11 @@ choiceLoop:
 	for {
 		switch option {
 		case 1:
-			Login(c)
-			break choiceLoop
+			status := Login(c)
+			if status == 200 {
+				break choiceLoop
+			}
+			break
 		case 2:
 			SignUp(c)
 		case 3:
@@ -46,19 +49,43 @@ choiceLoop:
 		fmt.Scan(&option)
 	}
 
+	//////////////////////////////////////////////
+	fmt.Printf("%sChoose a command\n", logo)
+	commands := []string{"View all books", "View finished books", "View unfinished books", "Find book", "Add book", "Edit book", "Delete book", "Logout"}
+	for index, com := range commands {
+		fmt.Printf("(%v) %v\n", index+1, com)
+	}
+	var bookOption int
+	fmt.Print("Option: ")
+	fmt.Scan(&bookOption)
+	fmt.Println(bookOption)
+
+secondLoop:
+	for {
+		switch bookOption {
+		case 1:
+			break secondLoop
+		case 8:
+			Logout(c)
+			break secondLoop
+		default:
+			fmt.Printf("\nPlease choose a number.")
+		}
+	}
+
 }
 
 func SignUp(c http.Client) {
 	// Print logo
-	fmt.Printf("%sSign Up\n\n", logo)
+	fmt.Printf("%sSign Up\n", logo)
 
 	// Input credentials
 	var username, password, confirmPassword string
 	fmt.Print("Username: ")
 	fmt.Scan(&username)
-	fmt.Print("\nPassword: ")
+	fmt.Print("Password: ")
 	fmt.Scan(&password)
-	fmt.Print("\nConfirm password: ")
+	fmt.Print("Confirm password: ")
 	fmt.Scan(&confirmPassword)
 
 	if password != confirmPassword {
@@ -98,5 +125,38 @@ func SignUp(c http.Client) {
 }
 
 func Login(c http.Client) int {
-	panic("Not implemented")
+	// Print logo
+	fmt.Printf("%sLogin\n", logo)
+
+	// Input credentials
+	var username, password string
+	fmt.Print("Username: ")
+	fmt.Scan(&username)
+	fmt.Print("Password: ")
+	fmt.Scan(&password)
+
+	// Encode json to byte
+	body := fmt.Sprintf("{\"username\":\"%s\", \"password\":\"%s\"}", username, password)
+	jsonBody := bytes.NewBuffer([]byte(body))
+
+	// POST request
+	signupUrl := baseUrl + "/login"
+	request, err := http.NewRequest("POST", signupUrl, jsonBody)
+	if err != nil {
+		log.Printf("[SignUp] Error found: %s", err.Error())
+		fmt.Printf("Error found: %s", err.Error())
+		return http.StatusInternalServerError
+	}
+
+	response, err := c.Do(request)
+	if err != nil {
+		fmt.Printf("Error found: %s", err.Error())
+	}
+	defer response.Body.Close()
+
+	responseBody, _ := ioutil.ReadAll(response.Body)
+
+	fmt.Printf("\nStatus: %s", response.Status)
+	fmt.Printf("\nBody: %s", string(responseBody))
+	return response.StatusCode
 }
