@@ -1,0 +1,64 @@
+{
+	"users": [
+		{
+			"username": "bogsAdmin",
+			"password": "password1",
+			"userid": 1
+		},
+		{
+			"username": "user1",
+			"password": "password1",
+			"userid": 2
+		}
+	],
+	"books": [
+		{
+			"userid": 1,
+			"bookid": 5,
+			"title": "Looking for Alaska",
+			"author": "John Green",
+			"status": "finished"
+		},
+		{
+			"userid": 1,
+			"bookid": 6,
+			"title": "The Sprint",
+			"author": "James Knapp",
+			"status": "not yet started"
+		},
+		{
+			"userid": 1,
+			"bookid": 7,
+			"title": "Paper Towns",
+			"author": "John Green",
+			"status": "finished"
+		},
+		{
+			"userid": 1,
+			"bookid": 8,
+			"title": "Composing Programs",
+			"author": "John DeNero",
+			"status": "not yet started"
+		},
+		{
+			"userid": 1,
+			"bookid": 4,
+			"title": "Atomic Habits",
+			"author": "James Clear",
+			"status": "not yet started"
+		}
+	],
+	"session": [
+		{
+			"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImJvZ3NBZG1pbiIsImV4cCI6MTY0NDkzODgzMH0.-AhlfU6XO9ld0qzWzRf4Bcl1Xs58SuQbYVlIRMlw2jE",
+			"userID": 1
+		},
+		{
+			"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImJvZ3NBZG1pbiIsImV4cCI6MTY0NDk4MjcyMX0.yQuGVL7bkPv61GsgsFp-_LFqULFn7B4ea5p9n_S2wUE",
+			"userID": 1
+		}
+	],
+	"nextUserID": 2,
+	"nextBookID": 8,
+	"Mu": {}
+}
