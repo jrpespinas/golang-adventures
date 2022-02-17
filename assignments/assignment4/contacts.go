@@ -82,10 +82,9 @@ func (db *Database) processID(id int, w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else {
-			w.WriteHeader(http.StatusNotFound)
+			http.Error(w, "contact ID does not exist", http.StatusNotFound)
 		}
 	case "PUT":
-		db.mu.Lock()
 		if _, ok := db.IDPointer[id]; ok {
 			// Decode json body
 			var item Contacts
@@ -107,7 +106,7 @@ func (db *Database) processID(id int, w http.ResponseWriter, r *http.Request) {
 			delete(db.IDPointer, id)
 			w.WriteHeader(http.StatusOK)
 		} else {
-			w.WriteHeader(http.StatusNotFound)
+			http.Error(w, "contact ID does not exist", http.StatusNotFound)
 		}
 		db.mu.Unlock()
 	}
