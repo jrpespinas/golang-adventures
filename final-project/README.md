@@ -4,8 +4,43 @@ Book List
 This project represents the culmination of my Golang training. The simple CRUD application called Book List keeps record of books read. Book list uses the `net/http` package to create simple back end APIs and http client. This project uses JSON for file-based storage, and the CLI for the client. It also has logging capabilities to keep track of the processes as the user interacts with the app. It uses JWT tokens to secure API requests and to keep track of sessions. Finally, the back end is deployed using Docker.
 
 ## Usage
+To run this project on your machine make sure you have Docker and Golang installed. Here is the link for [Golang installation](https://go.dev/doc/install), and here is for [Docker](https://www.docker.com/products/docker-desktop) which you can find right away on the landing page.
 
+If you already have Docker and Golang installed, follow these steps to run the project:
 
+### Server
+1. Clone the repository, and change directory to the `final-project`.
+```bash
+$ git clone git@github.com:jrpespinas/golang-adventures.git
+$ cd final-project
+```
+2. Change directory to `server` then deploy the back end.
+```bash
+$ cd server
+$ docker build -t book-list .
+```
+3. Once the build finishes, proceed to run the Docker image.
+```bash
+$ docker run -p 8080:8080 book-list
+```
+You will notice the logs being displayed on the terminal which means running the back end server is successful.
+
+### Client
+1. Open a separate terminal and go to the `final-project` once more, then finally go to the `client` folder.
+```bash
+$ cd final-project
+$ cd client
+```
+2. Build client
+```bash
+$ go build -o client
+```
+
+3. Run the client
+```bash
+$ ./client
+```
+Now from the client, you may now interact with the application. I suggest you choose the **signup** command then observe the logs you have opened from the other terminal. This is for you to create an account and to check if everything is working.
 
 ## License
 ```
