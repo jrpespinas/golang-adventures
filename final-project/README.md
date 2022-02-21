@@ -1,6 +1,8 @@
 Book List
 ===
-## Project Description
+## Overview
+This project represents the culmination of my Golang training. The simple CRUD application called Book List keeps record of books read. Book list uses the `net/http` package to create simple back end APIs and http client. This project uses JSON for file-based storage. It also has logging capabilities to keep track of the processes as the user interacts with the app. It uses JWT tokens to secure API requests and to keep track of sessions. Finally, the back end is deployed using Docker.
+
 ## Usage
 ## License
 ```
