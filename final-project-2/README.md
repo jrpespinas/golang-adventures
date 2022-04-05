@@ -7,15 +7,16 @@ The simple CRUD application called Book List keeps record of books read. Book li
 ```
 > final-project-2
     > client
-        > models
+        > models                    - data models to be displayed on the CLI
         app.go
     > server
-        > config
-        > controller
-        > logs
+        > config                    - functions for authentication, database connection, storage options
+        > controller                - main logic for requests
+        > data                      - output location for file-based storage option
+        > logs                      - output location for logs
         > models
-        > routes
-        > utils
+        > routes                    - routing for the controllers
+        > utils                     - utility functions such as better error handling messages
         .env
         app.go
         Dockerfile
