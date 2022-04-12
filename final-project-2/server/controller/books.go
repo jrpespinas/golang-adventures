@@ -29,7 +29,7 @@ func GetBook(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello"))
 }
 
-// Return book by id
+// Edit book by id
 // Route: PUT /api/v2/books/{id}
 // Access: protected
 func EditBook(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +37,7 @@ func EditBook(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello"))
 }
 
-// Return book by id
+// Delete book by id
 // Route: DELETE /api/v2/books/{id}
 // Access: protected
 func DeleteBook(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +45,7 @@ func DeleteBook(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello"))
 }
 
-// Return all book records
+// Return all finished books
 // Route: GET /api/v2/finished-books
 // Access: protected
 func GetFinishedBooks(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +53,7 @@ func GetFinishedBooks(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello"))
 }
 
-// Return all book records
+// Return all unfinished books
 // Route: GET /api/v2/unfinished-books
 // Access: protected
 func GetUnfinishedBooks(w http.ResponseWriter, r *http.Request) {
