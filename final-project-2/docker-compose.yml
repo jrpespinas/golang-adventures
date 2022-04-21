@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  server:
+    build: ./server
+    image: book-list:latest
+    container_name: book-list-server
+    env_file:
+      - .env
+    ports:
+      - ${PORT}:${PORT}
+    volumes:
+      - ./server:/app
