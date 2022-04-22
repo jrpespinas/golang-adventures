@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 
+	_ "book-list/utils/log"
+
 	log "github.com/sirupsen/logrus"
 )
 
