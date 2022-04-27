@@ -1,5 +1,12 @@
 version: "3.8"
 services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - ${DATABASE_PORT}:${DATABASE_PORT}
+    volumes:
+      - mongo_data:/data/db
   server:
     build: ./server
     image: book-list:latest
@@ -10,3 +17,8 @@ services:
       - ${PORT}:${PORT}
     volumes:
       - ./server:/app
+    depends_on:
+      - mongo_db
+
+volumes:
+  mongo_data: 
