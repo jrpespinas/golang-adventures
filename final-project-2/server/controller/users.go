@@ -1,15 +1,16 @@
 package controllers
 
 import (
-	"log"
 	"net/http"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Create a user account
 // Route: POST /api/v2/signup
 // Access: public
 func Signup(w http.ResponseWriter, r *http.Request) {
-	log.Print("[Sign up]")
+	log.Info("Creating a new user")
 	w.Write([]byte("Hello"))
 }
 
@@ -17,7 +18,7 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 // Route: POST /api/v2/login
 // Access: public
 func Login(w http.ResponseWriter, r *http.Request) {
-	log.Print("[Log in]")
+	log.Info("Logging in user")
 	w.Write([]byte("Hello"))
 }
 
@@ -25,6 +26,6 @@ func Login(w http.ResponseWriter, r *http.Request) {
 // Route: GET /api/v2/logout
 // Access: public
 func Logout(w http.ResponseWriter, r *http.Request) {
-	log.Print("[Log out]")
+	log.Info("Logging out user")
 	w.Write([]byte("Hello"))
 }
