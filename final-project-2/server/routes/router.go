@@ -4,26 +4,27 @@ import (
 	"net/http"
 
 	api "book-list/controller"
+	"book-list/database"
 
 	"github.com/go-chi/chi/v5"
 )
 
-func Router() http.Handler {
+func Router(database database.Storage) http.Handler {
 	r := chi.NewRouter()
 
 	// Routes for `books` resource
 	r.Route("/api/v2/books", func(r chi.Router) {
-		r.Post("/", api.CreateBook)
-		r.Get("/", api.GetBooks)
-		r.Get("/finished-books", api.GetFinishedBooks)
-		r.Get("/unfinished-books", api.GetUnfinishedBooks)
+		r.Post("/", api.CreateBookController(database))
+		r.Get("/", api.GetBooksController(database))
+		r.Get("/finished-books", api.GetFinishedBooksController(database))
+		r.Get("/unfinished-books", api.GetUnfinishedBooksController(database))
 
 		// Sub route for `books`
 		// TODO: Add middleware to check for `id`
 		r.Route("/{id}", func(r chi.Router) {
-			r.Get("/", api.GetBook)
-			r.Put("/", api.EditBook)
-			r.Delete("/", api.DeleteBook)
+			r.Get("/", api.GetOneBookController(database))
+			r.Put("/", api.EditBookController(database))
+			r.Delete("/", api.DeleteBookController(database))
 		})
 	})
 

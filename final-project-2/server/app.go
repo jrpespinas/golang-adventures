@@ -2,6 +2,7 @@ package main
 
 import (
 	config "book-list/config"
+	"book-list/database"
 	route "book-list/routes"
 	_ "book-list/utils/log"
 	"context"
@@ -10,7 +11,6 @@ import (
 	"os"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
@@ -24,25 +24,13 @@ func main() {
 	log.Info("Connecting to database...")
 
 	mongodb_uri := fmt.Sprintf("%v:%v", os.Getenv("MONGODB_URI"), os.Getenv("DATABASE_PORT"))
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongodb_uri))
-	defer func() {
-		if err = client.Disconnect(ctx); err != nil {
-			log.Panic(err)
-		}
-	}()
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	client, _ := mongo.Connect(ctx, options.Client().ApplyURI(mongodb_uri))
 
-	/*
-	   List databases
-	*/
-	databases, err := client.ListDatabaseNames(ctx, bson.M{})
-	if err != nil {
-		log.Fatal(err)
+	db := database.NewMongoStorage("book-list-db", client)
+	storage := database.Storage{
+		Database: db,
 	}
-	log.Info("Database Found")
-	log.Info(databases)
 
-	log.Infof("Listening at port%v", port)
-	http.ListenAndServe(port, route.Router())
+	http.ListenAndServe(port, route.Router(storage))
 }
